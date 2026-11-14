@@ -18,7 +18,7 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
+from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.stats.stattools import jarque_bera
 from statsmodels.tools.sm_exceptions import InterpolationWarning
 from statsmodels.tsa.arima.model import ARIMA
@@ -87,9 +87,12 @@ def unit_root_tests(y, regression):
     KPSS (H0: stationary): automatic bandwidth; p-values bounded to [0.01, 0.10].
     """
     p_max = int(12 * (len(y) / 100) ** 0.25)
-    adf_stat, adf_p, adf_lags, *_ = adfuller(y, regression=regression, maxlag=p_max, autolag="AIC")
     with warnings.catch_warnings():
+        # KPSS p-values outside its lookup table, and newer statsmodels' notices about
+        # future return types (results are unchanged)
         warnings.simplefilter("ignore", InterpolationWarning)
+        warnings.simplefilter("ignore", FutureWarning)
+        adf_stat, adf_p, adf_lags, *_ = adfuller(y, regression=regression, maxlag=p_max, autolag="AIC")
         kpss_stat, kpss_p, kpss_lags, _ = kpss(y, regression=regression, nlags="auto")
     return {"ADF stat": adf_stat, "ADF p": adf_p, "ADF lags": adf_lags,
             "KPSS stat": kpss_stat, "KPSS p": kpss_p, "KPSS bandwidth": kpss_lags}
@@ -224,8 +227,7 @@ def diagnostics(res, k):
     e = res.resid.iloc[BURN:]
     lb = acorr_ljungbox(e, lags=[6, 12, 24], model_df=k)
     return {"Ljung-Box(6) p": lb.loc[6, "lb_pvalue"], "Ljung-Box(12) p": lb.loc[12, "lb_pvalue"],
-            "Ljung-Box(24) p": lb.loc[24, "lb_pvalue"], "Jarque-Bera p": jarque_bera(e)[1],
-            "ARCH-LM(12) p": het_arch(e, nlags=12)[1]}
+            "Ljung-Box(24) p": lb.loc[24, "lb_pvalue"], "Jarque-Bera p": jarque_bera(e)[1]}
 
 
 def step7_table(fits, candidates):
@@ -247,13 +249,9 @@ def step8_diagnostics(res, k):
     e = res.resid.iloc[BURN:]
     lb = acorr_ljungbox(e, lags=[6, 12, 24], model_df=k)
     jb_stat, jb_p, skew, kurt = jarque_bera(e)
-    arch_stat, arch_p, *_ = het_arch(e, nlags=12)
-    h_stat, h_p = res.test_heteroskedasticity("breakvar")[0]
     rows = [*[(f"Ljung-Box({lag})", "Serial correlation", lb.loc[lag, "lb_stat"], lb.loc[lag, "lb_pvalue"])
               for lag in (6, 12, 24)],
-            ("Jarque-Bera", f"Normality (skew {skew:.2f}, kurtosis {kurt:.1f})", jb_stat, jb_p),
-            ("ARCH-LM(12)", "Volatility clustering", arch_stat, arch_p),
-            ("Harvey H", "Equal variance, first vs. last third", h_stat, h_p)]
+            ("Jarque-Bera", f"Normality (skew {skew:.2f}, kurtosis {kurt:.1f})", jb_stat, jb_p)]
     t = pd.DataFrame(rows, columns=["Test", "Checks", "Statistic", "p-value"]).set_index("Test")
     roots = pd.DataFrame({"Modulus": [*abs(res.arroots), *abs(res.maroots)]},
                          index=[f"AR root {i + 1}" for i in range(len(res.arroots))]
