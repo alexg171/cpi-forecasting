@@ -1,0 +1,30 @@
+# ---------------------------------------------------------------- Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# ---------------------------------------------------------------- Jupyter / Quarto
+.ipynb_checkpoints/
+.quarto/
+dashboard/*_files/
+dashboard/.quarto/
+
+# ---------------------------------------------------------------- Course documents (kept locally, not part of the replication package)
+# Proposal, data memo, drafts, instructor feedback, course PDFs, AI reference file
+documents/
+
+# ---------------------------------------------------------------- Generated but not needed
+# all_reports.html has the same content; the PDF print is a local convenience
+output/all_reports.pdf
+
+# ---------------------------------------------------------------- Office lock / temp files
+~$*
+*.tmp
+
+# ---------------------------------------------------------------- OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
